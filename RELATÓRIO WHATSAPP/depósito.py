@@ -20,12 +20,14 @@ data = worksheet.get_all_records()
 df = pd.DataFrame(data)
 
 # --- Exibir planilha completa ---
-st.title("Sistema de Estoque - Mapeamento de Colmeias")
-st.subheader("Visualização Completa da Planilha")
-st.dataframe(df)
+st.markdown("<h1 style='text-align: center;'>Sistema de Estoque - Mapeamento de Colmeias</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>Visualização Completa da Planilha</h2>", unsafe_allow_html=True)
+
+# Usar use_container_width=True para ocupar toda a largura disponível
+st.dataframe(df, use_container_width=True)
 
 # --- Tabela estilo Batalha Naval ---
-st.subheader("Visualização Estilo Batalha Naval")
+st.markdown("<h2 style='text-align: center;'>Visualização Estilo Batalha Naval</h2>", unsafe_allow_html=True)
 
 # Criar uma tabela para a visualização estilo Batalha Naval
 colmeias = df['Localização colmeia'].unique()  # Colunas são as localizações das colmeias
@@ -34,17 +36,85 @@ espacos = df['Localização espaços'].unique()  # Linhas são os espaços
 # Criação da tabela de batalha naval
 tabela_batalha = pd.DataFrame(index=espacos, columns=colmeias)
 
-# Preencher a tabela com as informações
+# Preencher a tabela com HTML de tooltip ou "Vazio"
 for _, row in df.iterrows():
     col = row['Localização colmeia']
     row_idx = row['Localização espaços']
     if col in tabela_batalha.columns and row_idx in tabela_batalha.index:
         if row['Descrição'] and row['Quantidade'] > 0:
             descricao = f"{row['Descrição']} ({row['Quantidade']})"
-            tabela_batalha.at[row_idx, col] = descricao  # Simplesmente atribuir descrição
+            tooltip_html = f"""
+                <div class="tooltip">
+                    <span class="tooltiptext">{descricao}</span>
+                    Peça Oculta
+                </div>
+            """
+            # Se a célula estiver vazia ou contiver "Vazio", adicione o tooltip_html
+            if pd.isna(tabela_batalha.at[row_idx, col]) or tabela_batalha.at[row_idx, col] == "Vazio":
+                tabela_batalha.at[row_idx, col] = tooltip_html
+            else:
+                # Concatenar se já houver um valor
+                tabela_batalha.at[row_idx, col] += f"<br>{tooltip_html}"
+        else:
+            tabela_batalha.at[row_idx, col] = "Vazio"
 
-# Substituir NaN por "Vazio"
-tabela_batalha.fillna("Vazio", inplace=True)
+# Substituir "\n" por "" (nada) e manter "Vazio" como está
+tabela_batalha.replace("\n", "", regex=True, inplace=True)
 
-# Exibir a tabela de batalha naval
-st.table(tabela_batalha)
+# --- Estilo CSS para o tooltip, centralização e largura da tabela ---
+st.markdown("""
+    <style>
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        cursor: pointer;
+        border-bottom: 1px dotted black;
+        color: transparent; /* Torna o texto "Peça Oculta" invisível */
+    }
+
+    .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 160px;
+        background-color: black;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;  /* Posição acima do texto */
+        left: 50%;
+        margin-left: -80px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* Centralizar a tabela */
+    .tabela-centralizada {
+        display: flex;
+        justify-content: center;
+    }
+
+    /* Centralizar o texto nas células da tabela */
+    table {
+        margin: 0 auto; /* Centraliza a tabela na página */
+        border-collapse: collapse; /* Remove espaços entre as células */
+    }
+    th, td {
+        text-align: center; /* Centraliza o texto das células */
+        padding: 10px; /* Adiciona um pouco de espaço interno nas células */
+        border: 1px solid black; /* Adiciona bordas às células */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Exibir a tabela de batalha naval com HTML seguro, dentro de um container centralizado
+st.markdown(
+    f'<div class="tabela-centralizada">{tabela_batalha.to_html(escape=False)}</div>',
+    unsafe_allow_html=True
+)
